@@ -47,6 +47,15 @@ public:
 	virtual Color sample(const IntersectionInfo& info);
 };
 
+class WeirdTexture: public Texture {
+public:
+	Color colors[2][3];
+	double frequencies[2][3];
+	double scaling;
+	WeirdTexture();
+	virtual Color sample(const IntersectionInfo& info);
+};
+
 class Bitmap;
 class BitmapTexture: public Texture {
 	Bitmap* bitmap;
@@ -62,7 +71,7 @@ public:
 	Color color;
 	Texture* texture;
 	Lambert() { color.makeZero(); texture = NULL; }
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Phong: public Shader {
@@ -71,7 +80,7 @@ public:
 	Texture* texture;
 	double specularMultiplier;
 	double specularExponent;
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Refl: public Shader {
@@ -79,10 +88,10 @@ public:
 	double multiplier;
 	double glossiness;
 	int numSamples;
-	Refl(double mult = 0.99, double glossiness = 1.0, int numSamples = 32): 
+	Refl(double mult = 0.99, double glossiness = 1.0, int numSamples = 32):
 			multiplier(mult), glossiness(glossiness), numSamples(numSamples) {}
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
-	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
+
 };
 
 class Refr: public Shader {
@@ -90,7 +99,7 @@ public:
 	double ior_ratio;
 	double multiplier;
 	Refr(double ior, double mult = 0.99): ior_ratio(ior), multiplier(mult) {}
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Layered: public Shader {
@@ -104,7 +113,7 @@ class Layered: public Shader {
 public:
 	Layered() { numLayers = 0; }
 	void addLayer(Shader* shader, Color blend, Texture* tex = NULL);
-	Color shade(const Ray& ray, const IntersectionInfo& info);		
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Fresnel: public Texture {
