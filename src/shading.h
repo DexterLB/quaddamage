@@ -24,6 +24,10 @@
 #ifndef __SHADING_H__
 #define __SHADING_H__
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 #include "geometry.h"
 #include "color.h"
 
@@ -62,7 +66,16 @@ public:
 	Color color;
 	Texture* texture;
 	Lambert() { color.makeZero(); texture = NULL; }
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
+};
+
+class OrenNayar: public Shader {
+public:
+	Color color;
+	Texture* texture;
+	double sigma;
+	OrenNayar() { color.makeZero(); texture = NULL; sigma = 1;}
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Phong: public Shader {
@@ -71,7 +84,7 @@ public:
 	Texture* texture;
 	double specularMultiplier;
 	double specularExponent;
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Refl: public Shader {
@@ -79,10 +92,10 @@ public:
 	double multiplier;
 	double glossiness;
 	int numSamples;
-	Refl(double mult = 0.99, double glossiness = 1.0, int numSamples = 32): 
+	Refl(double mult = 0.99, double glossiness = 1.0, int numSamples = 32):
 			multiplier(mult), glossiness(glossiness), numSamples(numSamples) {}
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
-	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
+
 };
 
 class Refr: public Shader {
@@ -90,7 +103,7 @@ public:
 	double ior_ratio;
 	double multiplier;
 	Refr(double ior, double mult = 0.99): ior_ratio(ior), multiplier(mult) {}
-	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Layered: public Shader {
@@ -104,7 +117,7 @@ class Layered: public Shader {
 public:
 	Layered() { numLayers = 0; }
 	void addLayer(Shader* shader, Color blend, Texture* tex = NULL);
-	Color shade(const Ray& ray, const IntersectionInfo& info);		
+	Color shade(const Ray& ray, const IntersectionInfo& info);
 };
 
 class Fresnel: public Texture {

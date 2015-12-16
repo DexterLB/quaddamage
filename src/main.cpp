@@ -24,7 +24,7 @@ Sphere s1;
 Cube cube;
 CheckerTexture blue;
 Lambert ceiling;
-Phong ball;
+OrenNayar ball;
 Lambert pod;
 Vector lightPos;
 double lightIntensity;
@@ -51,17 +51,17 @@ void setupScene()
 	ceilingTex.color2 = Color(0.5, 0.5, 0.5);
 	Texture* plochki = new BitmapTexture("data/floor.bmp", 100);
 	pod.texture = plochki;
-	
+
 	Layered* layeredPod = new Layered;
 	layeredPod->addLayer(&pod, Color(1, 1, 1));
 	layeredPod->addLayer(new Refl(0.9), Color(1, 1, 1) * 0.02f);
-	
+
 	ceiling.texture = &ceilingTex;
 	nodes.push_back({ &plane, layeredPod });
 	//nodes.push_back({ &plane2, &ceiling });
 	lightPos = Vector(120, 180, 0);
 	lightIntensity = 45000.0;
-	
+
 	// sphere:
 	s1.O = Vector(0, 30, -30);
 	s1.R = 27;
@@ -73,20 +73,19 @@ void setupScene()
 	blue.color1 = Color(0.2f, 0.4f, 1.0f);
 	blue.color2 = Color(0.4f, 0.4f, 0.4f);
 	blue.scaling = 2;
-	
-	ball.texture = new BitmapTexture("data/world.bmp");
-	ball.specularExponent = 200;
-	ball.specularMultiplier = 0.5;
-	
+
+	ball.color = Color(0.5f, 0.5f, 0.5f);
+	ball.sigma = 0.5;
+
 	Layered* glass = new Layered;
 	const double IOR_GLASS = 1.6;
 	glass->addLayer(new Refr(IOR_GLASS, 0.9), Color(1, 1, 1));
 	glass->addLayer(new Refl(0.9), Color(1, 1, 1), new Fresnel(IOR_GLASS));
-	
-	nodes.push_back({ &s1, glass });
-	
+
+	nodes.push_back({ &s1, &ball });
+
 	environment = new CubemapEnvironment("data/env/forest");
-	
+
 	camera.frameBegin();
 }
 
@@ -99,7 +98,7 @@ Color raytrace(Ray ray)
 	for (auto& node: nodes) {
 		IntersectionInfo info;
 		if (!node.geom->intersect(ray, info)) continue;
-		
+
 		if (info.distance < closestDist) {
 			closestDist = info.distance;
 			closestNode = &node;
@@ -122,13 +121,13 @@ bool visibilityCheck(const Vector& start, const Vector& end)
 	ray.start = start;
 	ray.dir = end - start;
 	ray.dir.normalize();
-	
+
 	double targetDist = (end - start).length();
-	
+
 	for (auto& node: nodes) {
 		IntersectionInfo info;
 		if (!node.geom->intersect(ray, info)) continue;
-		
+
 		if (info.distance < targetDist) {
 			return false;
 		}
