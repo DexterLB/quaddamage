@@ -9,108 +9,38 @@
 #include "geometry.h"
 #include "shading.h"
 #include "environment.h"
+#include "mesh.h"
+#include "random_generator.h"
+#include "scene.h"
 using std::vector;
 
 
 Color vfb[VFB_MAX_SIZE][VFB_MAX_SIZE];
 
-Camera camera;
-vector<Node> nodes;
-Plane plane;
-CheckerTexture checker;
-CheckerTexture ceilingTex;
-Plane plane2;
-Sphere s1;
-Cube cube;
-CheckerTexture blue;
-Lambert ceiling;
-OrenNayar ball;
-Lambert pod;
-Vector lightPos;
-double lightIntensity;
-Color ambientLight;
-bool wantAA = true;
-Environment* environment;
-int maxRaytraceDepth = 10;
-
-void setupScene()
-{
-	ambientLight = Color(1, 1, 1) * 0.1f;
-	camera.position = Vector(0, 60, -120);
-	camera.yaw = 0;
-	camera.pitch = -30;
-	camera.roll = 0;
-	camera.fov = 90;
-	camera.aspectRatio = float(frameWidth()) / float(frameHeight());
-	plane.y = 1;
-	plane.limit = 100;
-	plane2.y = 200;
-	checker.color1 = Color(0, 0, 0.5);
-	checker.color2 = Color(1, 0.5, 0);
-	ceilingTex.color1 = Color(0.5, 0.5, 0.5);
-	ceilingTex.color2 = Color(0.5, 0.5, 0.5);
-	Texture* plochki = new BitmapTexture("data/floor.bmp", 100);
-	pod.texture = plochki;
-
-	Layered* layeredPod = new Layered;
-	layeredPod->addLayer(&pod, Color(1, 1, 1));
-	layeredPod->addLayer(new Refl(0.9), Color(1, 1, 1) * 0.02f);
-
-	ceiling.texture = &ceilingTex;
-	nodes.push_back({ &plane, layeredPod });
-	//nodes.push_back({ &plane2, &ceiling });
-	lightPos = Vector(120, 180, 0);
-	lightIntensity = 45000.0;
-
-	// sphere:
-	s1.O = Vector(0, 30, -30);
-	s1.R = 27;
-	cube.O = Vector(0, 6, -30);
-	cube.halfSide = 15;
-	CsgOp* csg = new CsgMinus;
-	csg->left = &cube;
-	csg->right = &s1;
-	blue.color1 = Color(0.2f, 0.4f, 1.0f);
-	blue.color2 = Color(0.4f, 0.4f, 0.4f);
-	blue.scaling = 2;
-
-	ball.color = Color(0.5f, 0.5f, 0.5f);
-	ball.sigma = 0.5;
-
-	Layered* glass = new Layered;
-	const double IOR_GLASS = 1.6;
-	glass->addLayer(new Refr(IOR_GLASS, 0.9), Color(1, 1, 1));
-	glass->addLayer(new Refl(0.9), Color(1, 1, 1), new Fresnel(IOR_GLASS));
-
-	nodes.push_back({ &s1, &ball });
-
-	environment = new CubemapEnvironment("data/env/forest");
-
-	camera.frameBegin();
-}
-
 Color raytrace(Ray ray)
 {
-	if (ray.depth > maxRaytraceDepth) return Color(0, 0, 0);
+	if (ray.depth > scene.settings.maxTraceDepth) return Color(0, 0, 0);
 	Node* closestNode = NULL;
 	double closestDist = INF;
 	IntersectionInfo closestInfo;
-	for (auto& node: nodes) {
+	for (auto& node: scene.nodes) {
 		IntersectionInfo info;
-		if (!node.geom->intersect(ray, info)) continue;
-
+		if (!node->intersect(ray, info)) continue;
+		
 		if (info.distance < closestDist) {
 			closestDist = info.distance;
-			closestNode = &node;
+			closestNode = node;
 			closestInfo = info;
 		}
 	}
 	// check if we hit the sky:
 	if (closestNode == NULL) {
-		if (environment) return environment->getEnvironment(ray.dir);
+		if (scene.environment) return scene.environment->getEnvironment(ray.dir);
 		else return Color(0, 0, 0);
 	} else {
 		closestInfo.rayDir = ray.dir;
+		if (closestNode->bump)
+			closestNode->bump->modifyNormal(closestInfo);
 		return closestNode->shader->shade(ray, closestInfo);
 	}
 }
@@ -121,13 +51,13 @@ bool visibilityCheck(const Vector& start, const Vector& end)
 	ray.start = start;
 	ray.dir = end - start;
 	ray.dir.normalize();
-
+	
 	double targetDist = (end - start).length();
-
-	for (auto& node: nodes) {
+	
+	for (auto& node: scene.nodes) {
 		IntersectionInfo info;
-		if (!node.geom->intersect(ray, info)) continue;
-
+		if (!node->intersect(ray, info)) continue;
+		
 		if (info.distance < targetDist) {
 			return false;
 		}
@@ -135,8 +65,16 @@ bool visibilityCheck(const Vector& start, const Vector& end)
 	return true;
 }
 
+void debugRayTrace(int x, int y)
+{
+	Ray ray = scene.camera->getScreenRay(x, y);
+	ray.debug = true;
+	raytrace(ray);
+}
+
 void render()
 {
+	scene.beginFrame();
 	const double kernel[5][2] = {
 		{ 0.0, 0.0 },
 		{ 0.6, 0.0 },
@@ -144,36 +82,55 @@ void render()
 		{ 0.3, 0.3 },
 		{ 0.6, 0.6 },
 	};
-	Uint32 lastTicks = SDL_GetTicks();
-	for (int y = 0; y < frameHeight(); y++) {
-		for (int x = 0; x < frameWidth(); x++) {
-			if (wantAA) {
-				Color sum(0, 0, 0);
-				for (int i = 0; i < COUNT_OF(kernel); i++)
-					sum += raytrace(camera.getScreenRay(x + kernel[i][0], y + kernel[i][1]));
-				vfb[y][x] = sum / double(COUNT_OF(kernel));
-			} else {
-				Ray ray = camera.getScreenRay(x, y);
-				vfb[y][x] = raytrace(ray);
+	vector<Rect> buckets = getBucketsList();
+	for (Rect& r: buckets) {
+		for (int y = r.y0; y < r.y1; y++)
+			for (int x = r.x0; x < r.x1; x++) {
+				if (scene.settings.wantAA) {
+					Color sum(0, 0, 0);
+					for (int i = 0; i < COUNT_OF(kernel); i++)
+						sum += raytrace(scene.camera->getScreenRay(x + kernel[i][0], y + kernel[i][1]));
+					vfb[y][x] = sum / double(COUNT_OF(kernel));
+				} else {
+					Ray ray = scene.camera->getScreenRay(x, y);
+					vfb[y][x] = raytrace(ray);
+				}
 			}
-		}
-		if (SDL_GetTicks() - lastTicks > 100) {
-			displayVFB(vfb);
-			lastTicks = SDL_GetTicks();
-		}
+		if (!displayVFBRect(r, vfb)) return;
 	}
 }
 
+int renderSceneThread(void* /*unused*/)
+{
+	render();
+	rendering = false;
+	return 0;
+}
+
+const char* DEFAULT_SCENE = "data/heightfield.qdmg";
+
 int main ( int argc, char** argv )
 {
-	initGraphics(RESX, RESY);
+	initRandom(42);
+	Color::init_sRGB_cache();
+	const char* sceneFile = argc == 2 ? argv[1] : DEFAULT_SCENE;
+	if (!scene.parseScene(sceneFile)) {
+		printf("Could not parse the scene!\n");
+		return -1;
+	}
+	
+	initGraphics(scene.settings.frameWidth, scene.settings.frameHeight);
+	setWindowCaption("Quad Damage: preparing...");
+	
+	scene.beginRender();
+	
 	setWindowCaption("Quad Damage: rendering...");
-	setupScene();
 	Uint32 startTicks = SDL_GetTicks();
-	render();
+	renderScene_threaded();
 	Uint32 elapsedMs = SDL_GetTicks() - startTicks;
 	printf("Render took %.2fs\n", elapsedMs / 1000.0f);
 	setWindowCaption("Quad Damage: rendered in %.2fs\n", elapsedMs / 1000.0f);
+	
 	displayVFB(vfb);
 	waitForUserExit();
 	closeGraphics();

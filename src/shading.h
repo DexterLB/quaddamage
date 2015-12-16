@@ -24,23 +24,26 @@
 #ifndef __SHADING_H__
 #define __SHADING_H__
 
-#include <algorithm>
-using std::max;
-using std::min;
-
-#include "geometry.h"
 #include "color.h"
+#include "bitmap.h"
+#include "geometry.h"
+#include "scene.h"
 
-class Shader {
+class Shader: public SceneElement {
 public:
 	virtual Color shade(const Ray& ray, const IntersectionInfo& info) = 0;
 	virtual ~Shader() {}
+	
+	ElementType getElementType() const { return ELEM_SHADER; }
 };
 
-class Texture {
+class Texture: public SceneElement {
 public:
 	virtual Color sample(const IntersectionInfo& info) = 0;
+	virtual void modifyNormal(IntersectionInfo& info) {}
 	virtual ~Texture() {}
+	
+	ElementType getElementType() const { return ELEM_TEXTURE; }
 };
 
 class CheckerTexture: public Texture {
@@ -49,42 +52,92 @@ public:
 	double scaling;
 	CheckerTexture() { color1.makeZero(); color2.makeZero(); scaling = 1; }
 	virtual Color sample(const IntersectionInfo& info);
+
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getColorProp("color1", &color1);
+		pb.getColorProp("color2", &color2);
+		pb.getDoubleProp("scaling", &scaling);
+	}
 };
 
 class Bitmap;
 class BitmapTexture: public Texture {
 	Bitmap* bitmap;
 	double scaling;
+	float assumedGamma;
 public:
-	BitmapTexture(const char* filename, double scaling = 1.0);
+	BitmapTexture();
 	~BitmapTexture();
 	Color sample(const IntersectionInfo& info);
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getDoubleProp("scaling", &scaling);
+		scaling = 1/scaling;
+		if (!pb.getBitmapFileProp("file", *bitmap))
+			pb.requiredProp("file");
+		pb.getFloatProp("assumedGamma", &assumedGamma);
+		
+		if (assumedGamma != 1) {
+			if (assumedGamma == 2.2f)
+				bitmap->decompressGamma_sRGB();
+			else if (assumedGamma > 0 && assumedGamma < 10)
+				bitmap->decompressGamma(assumedGamma);
+		}
+	}
 };
+
+class BumpTexture: public Texture {
+	Bitmap* bitmap;
+	double strength, scaling;
+public:
+	BumpTexture();
+	~BumpTexture();
+	Color sample(const IntersectionInfo& info) {return Color(0, 0, 0);}
+	void modifyNormal(IntersectionInfo& info);
+	void beginRender();
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getDoubleProp("strength", &strength);
+		pb.getDoubleProp("scaling", &scaling);
+		if (!pb.getBitmapFileProp("file", *bitmap))
+			pb.requiredProp("file");
+	}
+};
+
 
 class Lambert: public Shader {
 public:
 	Color color;
 	Texture* texture;
 	Lambert() { color.makeZero(); texture = NULL; }
-	Color shade(const Ray& ray, const IntersectionInfo& info);
-};
-
-class OrenNayar: public Shader {
-public:
-	Color color;
-	Texture* texture;
-	double sigma;
-	OrenNayar() { color.makeZero(); texture = NULL; sigma = 1;}
-	Color shade(const Ray& ray, const IntersectionInfo& info);
+	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getColorProp("color", &color);
+		pb.getTextureProp("texture", &texture);
+	}
 };
 
 class Phong: public Shader {
 public:
 	Color color;
-	Texture* texture;
-	double specularMultiplier;
 	double specularExponent;
-	Color shade(const Ray& ray, const IntersectionInfo& info);
+	double specularMultiplier;
+	Texture* texture;
+	Phong(Color color = Color(0.5f, 0.5f, 0.5f), double specularExponent = 10, double specularMultiplier = 0.4, Texture* texture = NULL):
+		color(color),
+		specularExponent(specularExponent),
+		specularMultiplier(specularMultiplier),
+		texture(texture) {}
+	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getColorProp("color", &color);
+		pb.getTextureProp("texture", &texture);
+		pb.getDoubleProp("specularExponent", &specularExponent);
+		pb.getDoubleProp("specularMultiplier", &specularMultiplier);
+	}
 };
 
 class Refl: public Shader {
@@ -92,18 +145,29 @@ public:
 	double multiplier;
 	double glossiness;
 	int numSamples;
-	Refl(double mult = 0.99, double glossiness = 1.0, int numSamples = 32):
+	Refl(double mult = 0.99, double glossiness = 1.0, int numSamples = 32): 
 			multiplier(mult), glossiness(glossiness), numSamples(numSamples) {}
-	Color shade(const Ray& ray, const IntersectionInfo& info);
-
+	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getDoubleProp("multiplier", &multiplier);
+		pb.getDoubleProp("glossiness", &glossiness, 0, 1);
+		pb.getIntProp("numSamples", &numSamples, 1);
+	}
+	
 };
 
 class Refr: public Shader {
 public:
-	double ior_ratio;
+	double ior;
 	double multiplier;
-	Refr(double ior, double mult = 0.99): ior_ratio(ior), multiplier(mult) {}
-	Color shade(const Ray& ray, const IntersectionInfo& info);
+	Refr(double ior = 1.33, double mult = 0.99): ior(ior), multiplier(mult) {}
+	Color shade(const Ray& ray, const IntersectionInfo& info);	
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getDoubleProp("multiplier", &multiplier);
+		pb.getDoubleProp("ior", &ior, 1e-6, 10);
+	}
 };
 
 class Layered: public Shader {
@@ -117,14 +181,45 @@ class Layered: public Shader {
 public:
 	Layered() { numLayers = 0; }
 	void addLayer(Shader* shader, Color blend, Texture* tex = NULL);
-	Color shade(const Ray& ray, const IntersectionInfo& info);
+	Color shade(const Ray& ray, const IntersectionInfo& info);		
+	void fillProperties(ParsedBlock& pb);
 };
 
 class Fresnel: public Texture {
 	double ior;
 public:
-	Fresnel(double ior): ior(ior) {}
+	Fresnel(double ior = 1.33): ior(ior) {}
 	Color sample(const IntersectionInfo& info);
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getDoubleProp("ior", &ior, 1e-6, 10);
+	}
+};
+
+class Const: public Shader {
+	Color color;
+public:
+	Const(Color color = Color(0.5f, 0.5f, 0.5f)): color(color) {}
+	Color shade(const Ray& ray, const IntersectionInfo& info) { return color; }
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getColorProp("color", &color);
+	}
+};
+
+// a texture that generates a slight random bumps on any geometry, which computes dNdx, dNdy
+class Bumps: public Texture {
+	float strength;
+public:
+	Bumps() { strength = 0; }
+	
+	void modifyNormal(IntersectionInfo& data);
+	Color sample(const IntersectionInfo& info); // never called
+	void fillProperties(ParsedBlock& pb)
+	{
+		pb.getFloatProp("strength", &strength);
+	}
+	
 };
 
 #endif // __SHADING_H__

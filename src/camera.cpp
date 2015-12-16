@@ -26,7 +26,7 @@
 #include "util.h"
 #include "sdl.h"
 
-void Camera::frameBegin()
+void Camera::beginFrame()
 {	
 	double x2d = aspectRatio, y2d = +1;
 	
@@ -35,8 +35,8 @@ void Camera::frameBegin()
 	double hypotLength = sqrt(sqr(aspectRatio) + sqr(1.0));
 	double scaleFactor = wantedLength / hypotLength;
 	
-	x2d *= scaleFactor*1.5;
-	y2d *= scaleFactor*1.5;
+	x2d *= scaleFactor;
+	y2d *= scaleFactor;
 	
 	topLeft = Vector(-x2d, y2d, 1);
 	topRight = Vector(x2d, y2d, 1);

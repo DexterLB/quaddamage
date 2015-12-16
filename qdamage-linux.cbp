@@ -40,6 +40,7 @@
 			<Add library="Half" />
 			<Add library="Iex" />
 		</Linker>
+		<Unit filename="src/bbox.h" />
 		<Unit filename="src/bitmap.cpp" />
 		<Unit filename="src/bitmap.h" />
 		<Unit filename="src/camera.cpp" />
@@ -50,13 +51,22 @@
 		<Unit filename="src/environment.h" />
 		<Unit filename="src/geometry.cpp" />
 		<Unit filename="src/geometry.h" />
+		<Unit filename="src/heightfield.cpp" />
+		<Unit filename="src/heightfield.h" />
 		<Unit filename="src/main.cpp" />
 		<Unit filename="src/matrix.cpp" />
 		<Unit filename="src/matrix.h" />
+		<Unit filename="src/mesh.cpp" />
+		<Unit filename="src/mesh.h" />
+		<Unit filename="src/random_generator.cpp" />
+		<Unit filename="src/random_generator.h" />
+		<Unit filename="src/scene.cpp" />
+		<Unit filename="src/scene.h" />
 		<Unit filename="src/sdl.cpp" />
 		<Unit filename="src/sdl.h" />
 		<Unit filename="src/shading.cpp" />
 		<Unit filename="src/shading.h" />
+		<Unit filename="src/transform.h" />
 		<Unit filename="src/util.cpp" />
 		<Unit filename="src/util.h" />
 		<Unit filename="src/vector.h" />
