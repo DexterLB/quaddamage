@@ -25,13 +25,13 @@
 #include "shading.h"
 #include "bitmap.h"
 
-bool visibilityCheck(const Vector& start, const Vector& end);
+double visibilityCheck(const Vector& start, const Vector& end);
 
 Color CheckerTexture::sample(const IntersectionInfo& info)
 {
 	int x = (int) floor(info.u * scaling / 5.0);
 	int y = (int) floor(info.v * scaling / 5.0);
-	
+
 	Color checkerColor = ((x + y) % 2 == 0) ? color1 : color2;
 	return checkerColor;
 }
@@ -39,38 +39,33 @@ Color CheckerTexture::sample(const IntersectionInfo& info)
 double getLightContrib(const IntersectionInfo& info)
 {
 	double distanceToLightSqr = (info.ip - scene.settings.lightPos).lengthSqr();
-
-	if (!visibilityCheck(info.ip + info.normal * 1e-6, scene.settings.lightPos)) {
-		return 0;
-	} else {
-		return scene.settings.lightIntensity / distanceToLightSqr;
-	}
+	return (scene.settings.lightIntensity / distanceToLightSqr) * visibilityCheck(info.ip + info.normal * 1e-6, scene.settings.lightPos);
 }
 
 Color Lambert::shade(const Ray& ray, const IntersectionInfo& info)
 {
 	Color diffuse = texture ? texture->sample(info) : this->color;
-	
+
 	Vector v2 = info.ip - scene.settings.lightPos; // from light towards the intersection point
 	Vector v1 = faceforward(v2, info.normal); // orient so that surface points to the light
 	v2.normalize();
 	double lambertCoeff = dot(v1, -v2);
-	
+
 	return scene.settings.ambientLight * diffuse
 		+ diffuse * lambertCoeff * getLightContrib(info);
-	
+
 }
 
 Color Phong::shade(const Ray& ray, const IntersectionInfo& info)
 {
 	Color diffuse = texture ? texture->sample(info) : this->color;
-	
+
 	Vector v2 = info.ip - scene.settings.lightPos; // from light towards the intersection point
 	Vector v1 = faceforward(v2, info.normal); // orient so that surface points to the light
 	v2.normalize();
 	double lambertCoeff = dot(v1, -v2);
 	double fromLight = getLightContrib(info);
-	
+
 	Vector r = reflect(v2, v1);
 	Vector toCamera = -ray.dir;
 	double cosGamma = dot(toCamera, r);
@@ -79,7 +74,7 @@ Color Phong::shade(const Ray& ray, const IntersectionInfo& info)
 		phongCoeff = pow(cosGamma, specularExponent);
 	else
 		phongCoeff = 0;
-	
+
 	return scene.settings.ambientLight * diffuse
 		+ diffuse * lambertCoeff * fromLight
 		+ Color(1, 1, 1) * (phongCoeff * specularMultiplier * fromLight);
@@ -89,7 +84,7 @@ Color Phong::shade(const Ray& ray, const IntersectionInfo& info)
 BitmapTexture::BitmapTexture()
 {
 	bitmap = new Bitmap();
-	scaling = 1.0; 
+	scaling = 1.0;
 }
 BitmapTexture::~BitmapTexture() { delete bitmap; }
 
@@ -103,7 +98,7 @@ Color BitmapTexture::sample(const IntersectionInfo& info)
 	y = (y % bitmap->getHeight());
 	if (x < 0) x += bitmap->getWidth();
 	if (y < 0) y += bitmap->getHeight();
-	
+
 	return bitmap->getPixel(x, y);
 }
 
@@ -117,8 +112,8 @@ Color Refl::shade(const Ray& ray, const IntersectionInfo& info)
 		Ray newRay = ray;
 		newRay.start = info.ip + n * 0.000001;
 		newRay.dir = reflect(ray.dir, n);
-		newRay.depth++; 
-		
+		newRay.depth++;
+
 		return raytrace(newRay) * multiplier;
 	} else {
 		Color result(0, 0, 0);
@@ -136,14 +131,14 @@ Color Refl::shade(const Ray& ray, const IntersectionInfo& info)
 			//
 			x *= tan((1 - glossiness) * PI/2);
 			y *= tan((1 - glossiness) * PI/2);
-			
+
 			Vector modifiedNormal = n + a * x + b * y;
 
 			Ray newRay = ray;
 			newRay.start = info.ip + n * 0.000001;
 			newRay.dir = reflect(ray.dir, modifiedNormal);
-			newRay.depth++; 
-			
+			newRay.depth++;
+
 			result += raytrace(newRay) * multiplier;
 		}
 		return result / count;
@@ -279,11 +274,11 @@ void BumpTexture::modifyNormal(IntersectionInfo& info)
 	y = (y % bitmap->getHeight());
 	if (x < 0) x += bitmap->getWidth();
 	if (y < 0) y += bitmap->getHeight();
-	
+
 	Color bump = bitmap->getPixel(x, y);
 	float dx = bump.r;
 	float dy = bump.g;
-	
+
 	info.normal += (info.dNdx * dx + info.dNdy * dy) * strength;
 	info.normal.normalize();
 }

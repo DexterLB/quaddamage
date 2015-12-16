@@ -79,7 +79,7 @@ public:
 		pb.getVectorProp("O", &O);
 		pb.getDoubleProp("R", &R);
 	}
-	
+
 	bool intersect(const Ray& ray, IntersectionInfo& info);
 };
 
@@ -103,7 +103,7 @@ class CsgOp: public Geometry {
 	void findAllIntersections(Ray ray, Geometry* geom, std::vector<IntersectionInfo>& ips);
 public:
 	Geometry *left, *right;
-	
+
 	virtual bool boolOp(bool inA, bool inB) = 0;
 
 	void fillProperties(ParsedBlock& pb)
@@ -113,7 +113,7 @@ public:
 		pb.getGeometryProp("left", &left);
 		pb.getGeometryProp("right", &right);
 	}
-	
+
 	bool intersect(const Ray& ray, IntersectionInfo& info);
 };
 
@@ -139,10 +139,12 @@ struct Node: public Intersectable, public SceneElement {
 	Shader* shader;
 	Transform transform;
 	Texture* bump;
-	
-	Node() { bump = NULL; }
+
+	double shadowTransparency;
+
+	Node() { bump = NULL; shadowTransparency = 0; }
 	Node(Geometry* g, Shader* s) { geom = g; shader = s; bump = NULL; }
-	
+
 	// from Intersectable:
 	bool intersect(const Ray& ray, IntersectionInfo& data);
 
@@ -154,6 +156,7 @@ struct Node: public Intersectable, public SceneElement {
 		pb.getShaderProp("shader", &shader);
 		pb.getTransformProp(transform);
 		pb.getTextureProp("bump", &bump);
+		pb.getDoubleProp("shadowTransparency", &shadowTransparency);
 	}
 };
 

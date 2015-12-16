@@ -26,7 +26,7 @@ Color raytrace(Ray ray)
 	for (auto& node: scene.nodes) {
 		IntersectionInfo info;
 		if (!node->intersect(ray, info)) continue;
-		
+
 		if (info.distance < closestDist) {
 			closestDist = info.distance;
 			closestNode = node;
@@ -45,24 +45,24 @@ Color raytrace(Ray ray)
 	}
 }
 
-bool visibilityCheck(const Vector& start, const Vector& end)
+double visibilityCheck(const Vector& start, const Vector& end)
 {
 	Ray ray;
 	ray.start = start;
 	ray.dir = end - start;
 	ray.dir.normalize();
-	
+
 	double targetDist = (end - start).length();
-	
+
+	double transparency = 1;
+
 	for (auto& node: scene.nodes) {
 		IntersectionInfo info;
-		if (!node->intersect(ray, info)) continue;
-		
-		if (info.distance < targetDist) {
-			return false;
+		if (node->intersect(ray, info) && info.distance < targetDist) {
+			transparency *= node->shadowTransparency;
 		}
 	}
-	return true;
+	return transparency;
 }
 
 void debugRayTrace(int x, int y)
@@ -105,22 +105,22 @@ void render()
 int main ( int argc, char** argv )
 {
 	initRandom(42);
-	if (!scene.parseScene("data/bumpmap.qdmg")) {
+	if (!scene.parseScene("data/hw6/window.qdmg")) {
 		printf("Could not parse the scene!\n");
 		return -1;
 	}
-	
+
 	initGraphics(scene.settings.frameWidth, scene.settings.frameHeight);
 	setWindowCaption("Quad Damage: rendering...");
-	
+
 	scene.beginRender();
-	
+
 	Uint32 startTicks = SDL_GetTicks();
 	render();
 	Uint32 elapsedMs = SDL_GetTicks() - startTicks;
 	printf("Render took %.2fs\n", elapsedMs / 1000.0f);
 	setWindowCaption("Quad Damage: rendered in %.2fs\n", elapsedMs / 1000.0f);
-	
+
 	displayVFB(vfb);
 	waitForUserExit();
 	closeGraphics();
