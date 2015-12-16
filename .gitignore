@@ -47,6 +47,3 @@ Release/
 *.user
 *.sln
 *.vcxproj
-
-# Screenshots:
-quad_damage_*.bmp

@@ -44,8 +44,6 @@ bool Plane::intersect(const Ray& ray, IntersectionInfo& info)
 	if (fabs(info.ip.x) > limit || fabs(info.ip.z) > limit) return false;
 	info.u = info.ip.x;
 	info.v = info.ip.z;
-	info.dNdx = Vector(1, 0, 0);
-	info.dNdy = Vector(0, 0, 1);
 	info.geom = this;
 	return true;
 }
@@ -111,14 +109,8 @@ bool Cube::intersectSide(double level, double start, double dir, const Ray& ray,
 		info.ip = ip;
 		info.distance = distance;
 		info.normal = normal;
-		if (normal.y == 0) {
-			info.u = info.ip.x + info.ip.z;
-			info.v = info.ip.y;
-		} else {
-			// top or bottom:
-			info.u = info.ip.x;
-			info.v = info.ip.z;
-		}
+		info.u = info.ip.x + info.ip.z;
+		info.v = info.ip.y;
 		info.geom = this;
 		return true;
 	}
@@ -182,29 +174,4 @@ bool CsgOp::intersect(const Ray& ray, IntersectionInfo& info)
 	}
 	
 	return false;
-}
-
-bool Node::intersect(const Ray& ray, IntersectionInfo& data)
-{
-	// world space -> object's canonic space
-	Ray rayCanonic = ray;
-	rayCanonic.start = transform.undoPoint(ray.start);
-	rayCanonic.dir = transform.undoDirection(ray.dir);
-	
-	double rayDirLength = rayCanonic.dir.length();
-	rayCanonic.dir.normalize();
-	if (!geom->intersect(rayCanonic, data)) 
-		return false;
-	
-	// The intersection found is in object space, convert to world space:
-	data.normal = transform.normal(data.normal);
-	data.dNdx = transform.direction(data.dNdx);
-	data.dNdy = transform.direction(data.dNdy);
-	data.normal.normalize();
-	data.dNdx.normalize();
-	data.dNdy.normalize();
-	data.ip = transform.point(data.ip);
-	data.distance /= rayDirLength;  // (5)
-	return true;
-
 }

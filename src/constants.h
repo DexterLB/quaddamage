@@ -31,14 +31,4 @@
 #define PI 3.141592653589793238
 #define INF 1e99
 
-// large `float' number:
-#define LARGE_FLOAT 1e17f
-
-// large `double' number:
-#define LARGE_DOUBLE 1e120
-
-// Constants for the building of KD trees:
-#define MAX_TREE_DEPTH 64
-#define TRIANGLES_PER_LEAF 20
-
 #endif // __CONSTANTS_H__

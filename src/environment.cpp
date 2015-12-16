@@ -48,6 +48,12 @@ bool CubemapEnvironment::loadMaps(const char* folder)
 	return true;
 }
 
+CubemapEnvironment::CubemapEnvironment(const char* folder)
+{
+	memset(maps, 0, sizeof(maps));
+	loadMaps(folder);
+}
+
 CubemapEnvironment::~CubemapEnvironment()
 {
 	for (int i = 0; i < 6; i++) {
