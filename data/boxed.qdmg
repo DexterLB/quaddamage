@@ -4,6 +4,7 @@ GlobalSettings {
 	ambientLight        (0.075, 0.075, 0.075)
 	maxTraceDepth 8
 	wantAA false
+    refinementPasses    4
 }
 
 Camera camera {

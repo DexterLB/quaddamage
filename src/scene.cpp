@@ -819,6 +819,7 @@ GlobalSettings::GlobalSettings()
 	saturation = 1;
 	wantPrepass = true;
 	gi = false;
+	refinementPasses = 0;
 }
 
 void GlobalSettings::fillProperties(ParsedBlock& pb)
@@ -831,6 +832,7 @@ void GlobalSettings::fillProperties(ParsedBlock& pb)
 	pb.getBoolProp("wantAA", &wantAA);
 	pb.getFloatProp("saturation", &saturation, 0, 1);
 	pb.getBoolProp("wantPrepass", &wantPrepass);
+	pb.getIntProp("refinementPasses", &refinementPasses);
 }
 
 SceneElement* DefaultSceneParser::newSceneElement(const char* className)

@@ -42,11 +42,7 @@ Color getLightContrib(const IntersectionInfo& info, const Vector& lightPos, cons
 {
 	double distanceToLightSqr = (info.ip - lightPos).lengthSqr();
 
-	if (!visibilityCheck(info.ip + info.normal * 1e-6, lightPos)) {
-		return Color(0, 0, 0);
-	} else {
-		return lightColor / distanceToLightSqr;
-	}
+    return lightColor / distanceToLightSqr;
 }
 
 Color Lambert::shade(const Ray& ray, const IntersectionInfo& info)
@@ -54,20 +50,35 @@ Color Lambert::shade(const Ray& ray, const IntersectionInfo& info)
 	Color diffuse = texture ? texture->sample(info) : this->color;
 	
 	Color result(0, 0, 0);
+
+	int nonShadowSamples;
+    int j;
+
 	for (auto& light: scene.lights) {
 		int N = light->getNumSamples();
 		Color sum (0, 0, 0);
-		for (int i = 0; i < N; i++) {
-			Vector lightPos;
-			Color lightColor;
-			light->getNthSample(i, info.ip, lightPos, lightColor);
-			Vector v2 = info.ip - lightPos; // from light towards the intersection point
-			Vector v1 = faceforward(ray.dir, info.normal); // orient so that surface points to the light
-			v2.normalize();
-			double lambertCoeff = dot(v1, -v2);
-			sum += diffuse * lambertCoeff * getLightContrib(info, lightPos, lightColor);
-		}
-		result += sum / N;
+		for (j = 0; j < scene.settings.refinementPasses + 1; j++) {
+            nonShadowSamples = 0;
+            for (int i = 0; i < N; i++) {
+                Vector lightPos;
+                Color lightColor;
+                light->getNthSample(i, info.ip, lightPos, lightColor);
+                Vector v2 = info.ip - lightPos; // from light towards the intersection point
+                Vector v1 = faceforward(ray.dir, info.normal); // orient so that surface points to the light
+                v2.normalize();
+                double lambertCoeff = dot(v1, -v2);
+
+                if (visibilityCheck(info.ip + info.normal * 1e-6, lightPos)) {
+                    nonShadowSamples++;
+                    sum += diffuse * lambertCoeff * getLightContrib(info, lightPos, lightColor);
+                }
+            }
+            if (nonShadowSamples == 0 || nonShadowSamples == N) {
+                j++;
+                break;
+            }
+        }
+		result += sum / (N * j);
 	}
 	result += scene.settings.ambientLight * diffuse;
 	return result;
@@ -80,33 +91,46 @@ Color Phong::shade(const Ray& ray, const IntersectionInfo& info)
 	Color diffuse = texture ? texture->sample(info) : this->color;
 	
 	Color result(0, 0, 0);
+
+	int nonShadowSamples;
+	int j;
+
 	for (auto& light: scene.lights) {
 		int N = light->getNumSamples();
 		Color sum (0, 0, 0);
-		for (int i = 0; i < N; i++) {
-			Vector lightPos;
-			Color lightColor;
-			light->getNthSample(i, info.ip, lightPos, lightColor);
-			Vector v2 = info.ip - lightPos; // from light towards the intersection point
-			Vector v1 = faceforward(ray.dir, info.normal); // orient so that surface points to the light
-			v2.normalize();
-			double lambertCoeff = dot(v1, -v2);
-			Color fromLight = getLightContrib(info, lightPos, lightColor);
+		for (j = 0; j < scene.settings.refinementPasses + 1; j++) {
+            nonShadowSamples = 0;
+            for (int i = 0; i < N; i++) {
+                Vector lightPos;
+                Color lightColor;
+                light->getNthSample(i, info.ip, lightPos, lightColor);
+                Vector v2 = info.ip - lightPos; // from light towards the intersection point
+                Vector v1 = faceforward(ray.dir, info.normal); // orient so that surface points to the light
+                v2.normalize();
+                double lambertCoeff = dot(v1, -v2);
+                Color fromLight = getLightContrib(info, lightPos, lightColor);
 
-			Vector r = reflect(v2, v1);
-			Vector toCamera = -ray.dir;
-			double cosGamma = dot(toCamera, r);
-			double phongCoeff;
-			if (cosGamma > 0)
-				phongCoeff = pow(cosGamma, specularExponent);
-			else
-				phongCoeff = 0;
-			
-			sum += diffuse * lambertCoeff * fromLight
-				  + (phongCoeff * specularMultiplier * fromLight);
+                Vector r = reflect(v2, v1);
+                Vector toCamera = -ray.dir;
+                double cosGamma = dot(toCamera, r);
+                double phongCoeff;
+                if (cosGamma > 0)
+                    phongCoeff = pow(cosGamma, specularExponent);
+                else
+                    phongCoeff = 0;
+                if (visibilityCheck(info.ip + info.normal * 1e-6, lightPos)) {
+                    sum += diffuse * lambertCoeff * fromLight
+                        + (phongCoeff * specularMultiplier * fromLight);
+                    nonShadowSamples++;
+                }
 
-		}
-		result += sum / N;
+            }
+            if (nonShadowSamples == 0 || nonShadowSamples == N) {
+                j++;
+                break;
+            }
+        }
+        result += sum / (N * j);
 	}
 	result += scene.settings.ambientLight * diffuse;
 	return result;

@@ -256,6 +256,8 @@ struct GlobalSettings: public SceneElement {
 	float saturation; 
 	
 	bool wantPrepass;            //!< Coarse resolution pre-pass required (defaults to true)
+
+	int refinementPasses;        //!< Lamp sample multiplier for adaptive sampling
 		
 	GlobalSettings();
 	void fillProperties(ParsedBlock& pb);
