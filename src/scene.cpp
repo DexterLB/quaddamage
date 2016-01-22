@@ -819,7 +819,9 @@ GlobalSettings::GlobalSettings()
 	saturation = 1;
 	wantPrepass = true;
 	gi = false;
-	refinementPasses = 0;
+	numPaths = 10;
+	numThreads = 0;
+	interactive = fullscreen = false;
 }
 
 void GlobalSettings::fillProperties(ParsedBlock& pb)
@@ -832,7 +834,11 @@ void GlobalSettings::fillProperties(ParsedBlock& pb)
 	pb.getBoolProp("wantAA", &wantAA);
 	pb.getFloatProp("saturation", &saturation, 0, 1);
 	pb.getBoolProp("wantPrepass", &wantPrepass);
-	pb.getIntProp("refinementPasses", &refinementPasses);
+	pb.getBoolProp("gi", &gi);
+	pb.getIntProp("numPaths", &numPaths, 1);
+	pb.getIntProp("numThreads", &numThreads, 0, 64);
+	pb.getBoolProp("interactive", &interactive);
+	pb.getBoolProp("fullscreen", &fullscreen);
 }
 
 SceneElement* DefaultSceneParser::newSceneElement(const char* className)

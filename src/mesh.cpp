@@ -162,28 +162,29 @@ bool intersectTriangleFast(const Ray& ray, const Vector& A, const Vector& B, con
 	return true;
 }
 
-bool Mesh::intersectTriangle(const Ray& ray, const Triangle& t, IntersectionInfo& info)
+bool Mesh::intersectTriangle(const RRay& ray, const Triangle& t, IntersectionInfo& info)
 {
 	if (backfaceCulling && dot(ray.dir, t.gnormal) > 0) return false;
 	Vector A = vertices[t.v[0]];
-	Vector B = vertices[t.v[1]];
-	Vector C = vertices[t.v[2]];
 	
 	Vector H = ray.start - A;
 	Vector D = ray.dir;
 	
-	double Dcr = det(B-A, C-A, -D);
+	double Dcr = - (t.ABcrossAC * D);
 
 	if (fabs(Dcr) < 1e-12) return false;
 
-	double gamma = det(B-A, C-A, H) / Dcr;
+	double rDcr = 1 / Dcr;
+	double gamma = (t.ABcrossAC * H) * rDcr;
 	if (gamma < 0 || gamma > info.distance) return false;
 	
-	double lambda2 = det(H, C-A, -D) / Dcr;
-	double lambda3 = det(B-A, H, -D) / Dcr;
+	Vector HcrossD = H^D;
+	double lambda2 = (HcrossD * t.AC) * rDcr;
+	if (lambda2 < 0 || lambda2 > 1) return false;
 	
-	if (lambda2 < 0 || lambda3 < 0) return false;
-	if (lambda2 > 1 || lambda3 > 1) return false;
+	double lambda3 = -(t.AB * HcrossD) * rDcr;
+	if (lambda3 < 0 || lambda3 > 1) return false;
+	
 	if (lambda2 + lambda3 > 1) return false;
 		
 	info.distance = gamma;
@@ -214,7 +215,7 @@ bool Mesh::intersectTriangle(const Ray& ray, const Triangle& t, IntersectionInfo
 	return true;
 }
 
-bool Mesh::intersectKD(KDTreeNode* node, const BBox& bbox, const Ray& ray, IntersectionInfo& info)
+bool Mesh::intersectKD(KDTreeNode* node, const BBox& bbox, const RRay& ray, IntersectionInfo& info)
 {
 	if (node->axis == AXIS_NONE) {
 		bool found = false;
@@ -254,8 +255,10 @@ bool Mesh::intersectKD(KDTreeNode* node, const BBox& bbox, const Ray& ray, Inter
 	}
 }
 
-bool Mesh::intersect(const Ray& ray, IntersectionInfo& info)
+bool Mesh::intersect(const Ray& _ray, IntersectionInfo& info)
 {
+	RRay ray(_ray);
+	ray.prepareForTracing();
 	if (!bbox.testIntersect(ray))
 		return false;
 	
@@ -382,7 +385,9 @@ bool Mesh::loadFromOBJ(const char* filename)
 		Vector C = vertices[t.v[2]];
 		Vector AB = B - A;
 		Vector AC = C - A;
-		t.gnormal = AB ^ AC;
+		t.AB = AB;
+		t.AC = AC;
+		t.gnormal = t.ABcrossAC = AB ^ AC;
 		t.gnormal.normalize();
 		
 		// (1, 0) = px * texAB + qx * texAC; (1)

@@ -256,8 +256,11 @@ struct GlobalSettings: public SceneElement {
 	float saturation; 
 	
 	bool wantPrepass;            //!< Coarse resolution pre-pass required (defaults to true)
-
-	int refinementPasses;        //!< Lamp sample multiplier for adaptive sampling
+	int numPaths;                //!< paths per pixel in path tracing
+	
+	int numThreads;              //!< # of threads for rendering; 0 = autodetect. 1 = single-threaded
+	bool interactive;            //!< interactive render
+	bool fullscreen;             //!< whether we should switch to fullscreen in interactive mode
 		
 	GlobalSettings();
 	void fillProperties(ParsedBlock& pb);
