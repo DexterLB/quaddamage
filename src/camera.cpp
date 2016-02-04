@@ -81,14 +81,22 @@ void Camera::beginFrame()
 
 Ray Camera::getScreenRay(double xScreen, double yScreen, int whichCamera)
 {
-	Vector throughPoint = 
-		topLeft + (topRight - topLeft) * (xScreen / frameWidth())
-				+ (bottomLeft - topLeft) * (yScreen / frameHeight());
-	
 	Ray ray;
-	ray.dir = throughPoint - this->position;
-	ray.dir.normalize();
-	ray.start = this->position;
+	if (cylindrical) {
+        double offset = height * (0.5 - (yScreen / frameHeight()));
+        double angle = (0.5 - (xScreen / frameWidth())) * toRadians(fov);
+
+        ray.start = this->position + upDir * offset;
+        ray.dir = sin(angle) * frontDir + cos(angle) * rightDir;
+    } else {
+        Vector throughPoint = 
+            topLeft + (topRight - topLeft) * (xScreen / frameWidth())
+                    + (bottomLeft - topLeft) * (yScreen / frameHeight());
+        
+        ray.dir = throughPoint - this->position;
+        ray.dir.normalize();
+        ray.start = this->position;
+    }
 	if (whichCamera != CAMERA_CENTRAL) {
 		ray.start += (whichCamera == CAMERA_RIGHT ? +1 : -1) * stereoSeparation * rightDir;
 	}

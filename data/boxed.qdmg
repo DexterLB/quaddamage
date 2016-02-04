@@ -8,11 +8,12 @@ GlobalSettings {
 
 Camera camera {
 	position      (-30, 22, -40)
-	yaw           -34.4
-	pitch        -22.9
-	roll          0.0
-	fov           90
+	yaw           10
+	pitch         20
+	roll          30.0
+	fov           120
 	aspectRatio   1.333
+	cylindrical   true
 }
 
 //////////////////////// LIGHTS ////////////////////////////////////////////

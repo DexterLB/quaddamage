@@ -8,7 +8,7 @@ GlobalSettings {
 	frameHeight         480
 	maxTraceDepth 8
 	ambientLight (0.1, 0.1, 0.1)
-	gi 			on
+	gi 			off
 	numPaths 	40
 }
 
@@ -17,6 +17,7 @@ Camera camera {
     yaw          180
     pitch        -2.4
 	fov           47
+	cylindrical  true
 }
 
 //////////////////////// LIGHTS ////////////////////////////////////////////

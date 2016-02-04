@@ -51,6 +51,8 @@ public:
 	bool autofocus;
 	double stereoSeparation;
 	Color leftMask, rightMask;
+	bool cylindrical;       //!< make camera cylindrical
+	double height;          //!< cylinder height of cylindrical camera
 	
 	Camera() {
 		position.makeZero();
@@ -65,6 +67,8 @@ public:
 		stereoSeparation = 0.0;
 		leftMask = Color(1, 0, 0);
 		rightMask = Color(0, 1, 1);
+		cylindrical = false;
+		height = 60;
 	}
 	
 	void fillProperties(ParsedBlock& pb)
@@ -84,7 +88,8 @@ public:
 		pb.getDoubleProp("stereoSeparation", &stereoSeparation, 0.0);
 		pb.getColorProp("leftMask", &leftMask);
 		pb.getColorProp("rightMask", &rightMask);
-		
+		pb.getBoolProp("cylindrical", &cylindrical);
+		pb.getDoubleProp("height", &height);
 		apertureSize = 4.5 / fNumber;
 	}
 	

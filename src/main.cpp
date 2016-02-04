@@ -491,7 +491,7 @@ void mainloop(void)
 	}
 }
 
-const char* DEFAULT_SCENE = "data/smallpt.qdmg";
+const char* DEFAULT_SCENE = "data/boxed.qdmg";
 
 int main ( int argc, char** argv )
 {
